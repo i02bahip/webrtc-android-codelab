@@ -17,7 +17,7 @@ class CustomSdpObserver implements SdpObserver {
 
     CustomSdpObserver(String logTag) {
         tag = this.getClass().getCanonicalName();
-        this.tag = this.tag + " " + logTag;
+        this.tag = "FICLOG: " + this.tag + " " + logTag;
     }
 
 

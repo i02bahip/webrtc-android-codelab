@@ -34,6 +34,7 @@ class SignallingClient {
     boolean isInitiator = false;
     boolean isStarted = false;
     private SignalingInterface callback;
+    private static final String TAG = "FICLOG: Sign Client";
 
     //This piece of code should not go into production!!
     //This will help in cases where the node server is running in non-https server and you want to ignore the warnings
@@ -58,11 +59,10 @@ class SignallingClient {
         }
         if (instance.roomName == null) {
             //set the room name here
-            instance.roomName = "some_room_name";
+            instance.roomName = "webfic";
         }
         return instance;
     }
-
 
     public void init(SignalingInterface signalingInterface) {
         this.callback = signalingInterface;
@@ -72,9 +72,9 @@ class SignallingClient {
             IO.setDefaultHostnameVerifier((hostname, session) -> true);
             IO.setDefaultSSLContext(sslcontext);
             //set the socket.io url here
-            socket = IO.socket("your_socket_io_instance_url_with_port");
+            socket = IO.socket("https://pbh.sytes.net:8443");
             socket.connect();
-            Log.d("SignallingClient", "init() called");
+            Log.d(TAG, "init() called");
 
             if (!roomName.isEmpty()) {
                 emitInitStatement(roomName);
@@ -83,7 +83,7 @@ class SignallingClient {
 
             //room created event.
             socket.on("created", args -> {
-                Log.d("SignallingClient", "created call() called with: args = [" + Arrays.toString(args) + "]");
+                Log.d(TAG, "created call() called with: args = [" + Arrays.toString(args) + "]");
                 isInitiator = true;
                 callback.onCreatedRoom();
             });
@@ -93,14 +93,14 @@ class SignallingClient {
 
             //peer joined event
             socket.on("join", args -> {
-                Log.d("SignallingClient", "join call() called with: args = [" + Arrays.toString(args) + "]");
+                Log.d(TAG, "join call() called with: args = [" + Arrays.toString(args) + "]");
                 isChannelReady = true;
                 callback.onNewPeerJoined();
             });
 
             //when you joined a chat room successfully
             socket.on("joined", args -> {
-                Log.d("SignallingClient", "joined call() called with: args = [" + Arrays.toString(args) + "]");
+                Log.d(TAG, "joined call() called with: args = [" + Arrays.toString(args) + "]");
                 isChannelReady = true;
                 callback.onJoinedRoom();
             });
@@ -113,32 +113,51 @@ class SignallingClient {
 
             //messages - SDP and ICE candidates are transferred through this
             socket.on("message", args -> {
-                Log.d("SignallingClient", "message call() called with: args = [" + Arrays.toString(args) + "]");
+                Log.d(TAG, "message call() called with: args = [" + Arrays.toString(args) + "]");
                 if (args[0] instanceof String) {
-                    Log.d("SignallingClient", "String received :: " + args[0]);
+                    Log.d(TAG, "String received :: " + args[0]);
                     String data = (String) args[0];
                     if (data.equalsIgnoreCase("got user media")) {
+                        Log.d(TAG, "****** onTryToStart() from got user media");
                         callback.onTryToStart();
-                    }
+                    } else
                     if (data.equalsIgnoreCase("bye")) {
                         callback.onRemoteHangUp(data);
-                    }
-                } else if (args[0] instanceof JSONObject) {
-                    try {
-
-                        JSONObject data = (JSONObject) args[0];
-                        Log.d("SignallingClient", "Json Received :: " + data.toString());
-                        String type = data.getString("type");
-                        if (type.equalsIgnoreCase("offer")) {
-                            callback.onOfferReceived(data);
-                        } else if (type.equalsIgnoreCase("answer") && isStarted) {
-                            callback.onAnswerReceived(data);
-                        } else if (type.equalsIgnoreCase("candidate") && isStarted) {
-                            callback.onIceCandidateReceived(data);
+                    }else{
+                        try {
+                            JSONObject dataJson = new JSONObject(data);
+                            Log.d("SignallingClient", "Json Received :: " + dataJson.toString());
+                            String type = dataJson.getString("type");
+                            if (type.equalsIgnoreCase("offer")) {
+                                callback.onOfferReceived(dataJson);
+                            } else if (type.equalsIgnoreCase("answer") && isStarted) {
+                                callback.onAnswerReceived(dataJson);
+                            } else if (type.equalsIgnoreCase("candidate") && isStarted) {
+                                callback.onIceCandidateReceived(dataJson);
+                            }
+                        } catch (JSONException e) {
+                            Log.d("SignallingClient", "JSON Exception error");
+                            e.printStackTrace();
                         }
-
-                    } catch (JSONException e) {
-                        e.printStackTrace();
+                    }
+                }
+                else {
+                    if(args[0] instanceof JSONObject){
+                        try {
+                            JSONObject dataJson = (JSONObject)args[0];
+                            Log.d("SignallingClient", "Json Received :: " + dataJson.toString());
+                            String type = dataJson.getString("type");
+                            if (type.equalsIgnoreCase("offer")) {
+                                callback.onOfferReceived(dataJson);
+                            } else if (type.equalsIgnoreCase("answer") && isStarted) {
+                                callback.onAnswerReceived(dataJson);
+                            } else if (type.equalsIgnoreCase("candidate") && isStarted) {
+                                callback.onIceCandidateReceived(dataJson);
+                            }
+                        } catch (JSONException e) {
+                            Log.d("SignallingClient", "JSON Exception error");
+                            e.printStackTrace();
+                        }
                     }
                 }
             });
@@ -148,24 +167,23 @@ class SignallingClient {
     }
 
     private void emitInitStatement(String message) {
-        Log.d("SignallingClient", "emitInitStatement() called with: event = [" + "create or join" + "], message = [" + message + "]");
+        Log.d(TAG, "emitInitStatement() called with: event = [" + "create or join" + "], message = [" + message + "]");
         socket.emit("create or join", message);
     }
 
     public void emitMessage(String message) {
-        Log.d("SignallingClient", "emitMessage() called with: message = [" + message + "]");
+        Log.d(TAG, "emitMessage() called with: message = [" + message + "]");
         socket.emit("message", message);
     }
 
     public void emitMessage(SessionDescription message) {
         try {
-            Log.d("SignallingClient", "emitMessage() called with: message = [" + message + "]");
+            Log.d(TAG, "emitMessage() called with: message = [" + message + "]");
             JSONObject obj = new JSONObject();
             obj.put("type", message.type.canonicalForm());
             obj.put("sdp", message.description);
-            Log.d("emitMessage", obj.toString());
+            Log.d(TAG, obj.toString());
             socket.emit("message", obj);
-            Log.d("vivek1794", obj.toString());
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -179,6 +197,7 @@ class SignallingClient {
             object.put("label", iceCandidate.sdpMLineIndex);
             object.put("id", iceCandidate.sdpMid);
             object.put("candidate", iceCandidate.sdp);
+            Log.d(TAG, "Emit ice candidate: message:" + object.toString());
             socket.emit("message", object);
         } catch (Exception e) {
             e.printStackTrace();

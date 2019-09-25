@@ -63,7 +63,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     boolean gotUserMedia;
     List<PeerConnection.IceServer> peerIceServers = new ArrayList<>();
 
-    private static final String TAG = "MainActivity";
+    private static final String TAG = "FICLOG: MainActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -122,7 +122,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         peerIceServers.add(peerIceServer);
                     }
                 }
-                Log.d("onApiResponse", "IceServers\n" + iceServers.toString());
+                Log.d(TAG, "IceServers\n" + iceServers.toString());
             }
 
             @Override
@@ -182,6 +182,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         gotUserMedia = true;
         if (SignallingClient.getInstance().isInitiator) {
+            Log.d(TAG, "****** onTryToStart() from start()");
             onTryToStart();
         }
     }
@@ -194,6 +195,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onTryToStart() {
         runOnUiThread(() -> {
+            Log.d(TAG, "Method onTryToStart() ");
             if (!SignallingClient.getInstance().isStarted && localVideoTrack != null && SignallingClient.getInstance().isChannelReady) {
                 createPeerConnection();
                 SignallingClient.getInstance().isStarted = true;
@@ -204,11 +206,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         });
     }
 
-
     /**
      * Creating the local peerconnection instance
      */
     private void createPeerConnection() {
+        Log.d(TAG, "Create local peer connection!!\n");
         PeerConnection.RTCConfiguration rtcConfig =
                 new PeerConnection.RTCConfiguration(peerIceServers);
         // TCP candidates are only useful when connecting to a server that supports
@@ -219,6 +221,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         rtcConfig.continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY;
         // Use ECDSA encryption.
         rtcConfig.keyType = PeerConnection.KeyType.ECDSA;
+        Log.d(TAG, "Create Local peer connection \n");
         localPeer = peerConnectionFactory.createPeerConnection(rtcConfig, new CustomPeerConnectionObserver("localPeerCreation") {
             @Override
             public void onIceCandidate(IceCandidate iceCandidate) {
@@ -228,7 +231,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             @Override
             public void onAddStream(MediaStream mediaStream) {
-                showToast("Received Remote stream");
+                Log.d(TAG, "Received remote stream!! \n");
                 super.onAddStream(mediaStream);
                 gotRemoteStream(mediaStream);
             }
@@ -242,6 +245,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void addStreamToLocalPeer() {
         //creating local mediastream
+        Log.d(TAG, "Method addStreamToLocalPeer() ");
         MediaStream stream = peerConnectionFactory.createLocalMediaStream("102");
         stream.addTrack(localAudioTrack);
         stream.addTrack(localVideoTrack);
@@ -253,6 +257,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * to remote peer
      */
     private void doCall() {
+        Log.d(TAG, "Do call!\n");
         sdpConstraints = new MediaConstraints();
         sdpConstraints.mandatory.add(
                 new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));
@@ -262,8 +267,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void onCreateSuccess(SessionDescription sessionDescription) {
                 super.onCreateSuccess(sessionDescription);
+                Log.d(TAG, "Set Local description: " + sessionDescription.toString() + "\n");
                 localPeer.setLocalDescription(new CustomSdpObserver("localSetLocalDesc"), sessionDescription);
-                Log.d("onCreateSuccess", "SignallingClient emit ");
+                Log.d(TAG, "Emit local description");
                 SignallingClient.getInstance().emitMessage(sessionDescription);
             }
         }, sdpConstraints);
@@ -273,6 +279,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * Received remote peer's media stream. we will get the first video track and render it
      */
     private void gotRemoteStream(MediaStream stream) {
+        Log.d(TAG, "Method gotRemoteStream(MediaStream stream) ");
         //we have remote video stream. add to the renderer.
         final VideoTrack videoTrack = stream.videoTracks.get(0);
         runOnUiThread(() -> {
@@ -291,6 +298,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * Received local ice candidate. Send it to remote peer through signalling for negotiation
      */
     public void onIceCandidateReceived(IceCandidate iceCandidate) {
+        Log.d(TAG, "Emit Local ice candidate: " + iceCandidate.toString() + "\n");
         //we have received ice candidate. We can set it to the other peer.
         SignallingClient.getInstance().emitIceCandidate(iceCandidate);
     }
@@ -300,8 +308,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     @Override
     public void onCreatedRoom() {
+        Log.d(TAG, "Method onCreatedRoom() ");
         showToast("You created the room " + gotUserMedia);
         if (gotUserMedia) {
+            Log.d(TAG, "Emit gotUserMedia \n");
             SignallingClient.getInstance().emitMessage("got user media");
         }
     }
@@ -311,20 +321,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     @Override
     public void onJoinedRoom() {
-        showToast("You joined the room " + gotUserMedia);
+        Log.d(TAG, "Method onJoinedRoom() ");
+        Log.d(TAG, "You joined the room " + gotUserMedia + "\n");
         if (gotUserMedia) {
+            Log.d(TAG, "Emit gotUserMedia \n");
             SignallingClient.getInstance().emitMessage("got user media");
         }
     }
 
     @Override
     public void onNewPeerJoined() {
-        showToast("Remote Peer Joined");
+        Log.d(TAG, "Remote Peer Joined \n");
     }
 
     @Override
     public void onRemoteHangUp(String msg) {
-        showToast("Remote Peer hungup");
+        Log.d(TAG, "Remote Peer hungup \n");
         runOnUiThread(this::hangup);
     }
 
@@ -333,14 +345,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     @Override
     public void onOfferReceived(final JSONObject data) {
-        showToast("Received Offer");
+        Log.d(TAG, "Received Offer: \n" + data.toString() + "\n"
+                + "Is initiator: " + SignallingClient.getInstance().isInitiator + "\n"
+                + "Is started: " + SignallingClient.getInstance().isStarted + "\n");
         runOnUiThread(() -> {
             if (!SignallingClient.getInstance().isInitiator && !SignallingClient.getInstance().isStarted) {
+                Log.d(TAG, "****** onTryToStart() from onOfferReceived()");
                 onTryToStart();
             }
-
             try {
-                localPeer.setRemoteDescription(new CustomSdpObserver("localSetRemote"), new SessionDescription(SessionDescription.Type.OFFER, data.getString("sdp")));
+                String sessionDesc = data.getString("sdp");//.replace("42c01f", "42e01f");
+                Log.d(TAG, "Set remote description: " + sessionDesc);
+                localPeer.setRemoteDescription(new CustomSdpObserver("localSetRemote"), new SessionDescription(SessionDescription.Type.OFFER, sessionDesc));
                 doAnswer();
                 updateVideoViews(true);
             } catch (JSONException e) {
@@ -353,8 +369,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         localPeer.createAnswer(new CustomSdpObserver("localCreateAns") {
             @Override
             public void onCreateSuccess(SessionDescription sessionDescription) {
+                Log.d(TAG, "Do answer: \n");
                 super.onCreateSuccess(sessionDescription);
+                Log.d(TAG, "Set Local description: " + sessionDescription.toString() + "\n");
                 localPeer.setLocalDescription(new CustomSdpObserver("localSetLocal"), sessionDescription);
+                Log.d(TAG, "Emit Local description: \n");
                 SignallingClient.getInstance().emitMessage(sessionDescription);
             }
         }, new MediaConstraints());
@@ -366,8 +385,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onAnswerReceived(JSONObject data) {
-        showToast("Received Answer");
+        Log.d(TAG, "Received answer: \n");
         try {
+            Log.d(TAG, "Set remote description: " + data.toString() + "\n");
             localPeer.setRemoteDescription(new CustomSdpObserver("localSetRemote"), new SessionDescription(SessionDescription.Type.fromCanonicalForm(data.getString("type").toLowerCase()), data.getString("sdp")));
             updateVideoViews(true);
         } catch (JSONException e) {
@@ -381,6 +401,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onIceCandidateReceived(JSONObject data) {
         try {
+            Log.d(TAG, "Ice candidate received: " + data.toString() + "\n");
             localPeer.addIceCandidate(new IceCandidate(data.getString("id"), data.getInt("label"), data.getString("candidate")));
         } catch (JSONException e) {
             e.printStackTrace();

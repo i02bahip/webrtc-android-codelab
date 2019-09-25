@@ -24,12 +24,12 @@ var sdpConstraints = {
 
 /////////////////////////////////////////////
 
-var room = 'vivek17';
+var room = 'webfic';
 // Could prompt for room name:
  room = prompt('Enter room name:');
 
-//var socket = io.connect("http://172.245.132.132:1794");
-var socket = io.connect();
+var socket = io.connect("https://pbh.sytes.net:8443");
+//var socket = io.connect();
 if (room !== '') {
   socket.emit('create or join', room);
   console.log('Attempted to create or  join room', room);
@@ -80,8 +80,8 @@ socket.on('message', function(message) {
     doAnswer();
   } else if (message.type === 'answer' && isStarted) {
     console.log("received answer");
-    pc.setRemoteDescription(new RTCSsseionDescription(message));
-    console.log(pc.getRemoteDescription());
+    pc.setRemoteDescription(new RTCSessionDescription(message));
+    console.log(message);
   } else if (message.type === 'candidate' && isStarted) {
     var candidate = new RTCIceCandidate({
       sdpMLineIndex: message.label,
@@ -104,12 +104,13 @@ navigator.mediaDevices.getUserMedia({
 })
 .then(gotStream)
 .catch(function(e) {
-  alert('getUserMedia() error: ' + e.name);
+  alert('getUserMedia() error: ' + e);
 });
 
 function gotStream(stream) {
   console.log('Adding local stream.');
-  localVideo.src = window.URL.createObjectURL(stream);
+  //localVideo.src = window.URL.createObjectURL(stream);
+  localVideo.srcObject = stream;
   localStream = stream;
   sendMessage('got user media');
   if (isInitiator) {
@@ -124,11 +125,10 @@ var constraints = {
 console.log('Getting user media with constraints', constraints);
 
 if (location.hostname !== 'localhost') {
-  requestTurn(
+ // requestTurn(
 //    'https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913'
-    'https://service.xirsys.com/ice?ident=vivekchanddru&secret=ad6ce53a-e6b5-11e6-9685-937ad99985b9&domain=www.vivekc.xyz&application=default&room=testing&secure=1'
-  
-);
+ //   'https://service.xirsys.com/ice?ident=vivekchanddru&secret=ad6ce53a-e6b5-11e6-9685-937ad99985b9&domain=www.vivekc.xyz&application=default&room=testing&secure=1'
+//);
 }
 
 function maybeStart() {
@@ -155,7 +155,7 @@ function createPeerConnection() {
   try {
     pc = new RTCPeerConnection(null);
     pc.onicecandidate = handleIceCandidate;
-    pc.onaddstream = handleRemoteStreamAdded;
+    pc.ontrack = handleRemoteStreamAdded;
     pc.onremovestream = handleRemoteStreamRemoved;
     console.log('Created RTCPeerConnnection');
   } catch (e) {
@@ -181,7 +181,8 @@ function handleIceCandidate(event) {
 
 function handleRemoteStreamAdded(event) {
   console.log('Remote stream added.');
-  remoteVideo.src = window.URL.createObjectURL(event.stream);
+  //remoteVideo.src = window.URL.createObjectURL(event.stream);
+  remoteVideo.srcObject = event.stream;
   remoteStream = event.stream;
 }
 
@@ -245,7 +246,8 @@ function requestTurn(turnURL) {
 
 function handleRemoteStreamAdded(event) {
   console.log('Remote stream added.');
-  remoteVideo.src = window.URL.createObjectURL(event.stream);
+  //remoteVideo.src = window.URL.createObjectURL(event.stream);
+  remoteVideo.srcObject = event.stream;
   remoteStream = event.stream;
 }
 
